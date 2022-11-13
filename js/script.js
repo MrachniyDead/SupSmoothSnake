@@ -19,10 +19,12 @@ if (document.documentElement.clientWidth < 400) {
 }
 
 // game vars
-const FPS = 1000/20;
+const defFps = 1000/6;
+let FPS = defFps;
 let loop;
 const squareSize = 20;
 let gameStarted = false;
+const chanse = 20;
 
 // cvs dimentions
 const width = cvs.width, 
@@ -113,7 +115,13 @@ function moveSnake() {
 
     if(hasEatenFood()) {
         food = createFood();
-    } else {
+        if(!Object.keys(bonusFood).length) {
+            isBonusFoodWillCreated(chanse);
+        }
+    } else if(hasEatenBonusFood()) {
+        bonusFood = {};
+    } 
+    else {
         snake.pop();
     }
     // unshift new head
@@ -122,6 +130,25 @@ function moveSnake() {
 function hasEatenFood() {
     const head = snake[0];
     return head.x === food.x && head.y === food.y;
+}
+function hasEatenBonusFood() {
+    const head = snake[0];
+    return head.x === bonusFood.x && head.y === bonusFood.y;
+}
+
+function changeSpeed() {
+    if(hasEatenFood()) {
+        if (score < 5) { 
+            FPS -= 6;
+            return;
+        } else if (score <= 15){ 
+            FPS -= 3;
+            return;
+        } else if (score <= 25) { 
+            FPS -= 2;
+            return;
+        }
+    }
 }
 
 // keydown event
@@ -147,7 +174,15 @@ function setDirection(newDirection) {
     ) {
         if(!gameStarted) {
             gameStarted = true;
-            loop = setInterval(frame, FPS);
+            // loop = setInterval(frame, FPS);
+            loop = setTimeout( function start() {
+                frame();
+                // console.log(FPS);
+                loop = setTimeout(start, FPS);
+                if (isGameOver) {
+                    clearTimeout(loop);
+                }
+            }, FPS);
         }
         directionsQueue.push(newDirection);
     }
@@ -181,7 +216,15 @@ document.addEventListener('touchend', function(event) {
 }, false);
       
 // food
+
 let food = createFood();
+let bonusFood = {};
+function isBonusFoodWillCreated(chanse) {
+    console.log('food');
+    if(Math.random() * 100 < chanse) {
+        bonusFood = createFood();
+    }
+}
 function createFood() {
     let food = {
         x: Math.floor(Math.random() * horisontalSq),
@@ -197,6 +240,9 @@ function createFood() {
 }
 function drawFood() {
     drawSquare(food.x, food.y, '#F95700');
+}
+function drawBonusFood() {
+    drawSquare(bonusFood.x, bonusFood.y, '#FFFD81');
 }
 
 // score
@@ -245,15 +291,17 @@ function gameOver() {
     isGameOver = true;
 }
 
+
 function frame() {
     drawBoard();
     drawFood();
+    drawBonusFood();
     moveSnake();
     drawSnake();
     renderScore();
-
+    changeSpeed();
     if(hitWall() || hitSelf()) {
-        clearInterval(loop);
+        clearTimeout(loop);
         gameOver();
     }
 }
@@ -286,6 +334,8 @@ function restartGame() {
     gameStarted = false;
 
     isGameOver = false;
+
+    FPS = defFps;
 
     // re-draw everything
     food = createFood();
